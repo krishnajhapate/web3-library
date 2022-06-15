@@ -1,86 +1,248 @@
-import type { NextPage } from 'next'
-import Head from 'next/head'
-import Image from 'next/image'
+import { ethers } from "ethers";
+import type { NextPage } from "next";
+import { useState } from "react";
+import { LibraryContractAddress } from "../config";
+import Library from "../utils/Library.json";
+import Book from "./components/book";
 
 const Home: NextPage = () => {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center py-2">
-      <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+    const [currentAccount, setCurrentAccount] = useState("");
+    const [correctNetwork, setCorrectNetwork] = useState(false);
 
-      <main className="flex w-full flex-1 flex-col items-center justify-center px-20 text-center">
-        <h1 className="text-6xl font-bold">
-          Welcome to{' '}
-          <a className="text-blue-600" href="https://nextjs.org">
-            Next.js!
-          </a>
-        </h1>
+    const [books, setBooks] = useState([]);
+    const [txError, setTxError] = useState(null);
+    const [bookName, setBookName] = useState("");
+    const [bookAuthor, setBookAuthor] = useState("");
+    const [bookYear, setBookYear] = useState("");
+    const [bookFinished, setBookFinished] = useState("");
 
-        <p className="mt-3 text-2xl">
-          Get started by editing{' '}
-          <code className="rounded-md bg-gray-100 p-3 font-mono text-lg">
-            pages/index.tsx
-          </code>
-        </p>
+    const getBooks = async () => {
+        try {
+            const { ethereum } = window;
 
-        <div className="mt-6 flex max-w-4xl flex-wrap items-center justify-around sm:w-full">
-          <a
-            href="https://nextjs.org/docs"
-            className="mt-6 w-96 rounded-xl border p-6 text-left hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Documentation &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Find in-depth information about Next.js features and its API.
-            </p>
-          </a>
+            if (ethereum) {
+                const provider = new ethers.providers.Web3Provider(ethereum);
+                const signer = provider.getSigner();
+                const LibraryContract = new ethers.Contract(
+                    LibraryContractAddress,
+                    Library.abi,
+                    signer
+                );
 
-          <a
-            href="https://nextjs.org/learn"
-            className="mt-6 w-96 rounded-xl border p-6 text-left hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Learn &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Learn about Next.js in an interactive course with quizzes!
-            </p>
-          </a>
+                let booksFinished = await LibraryContract.getFinishedBook();
 
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className="mt-6 w-96 rounded-xl border p-6 text-left hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Examples &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Discover and deploy boilerplate example Next.js projects.
-            </p>
-          </a>
+                let booksUnFinished = await LibraryContract.getUnFinishedBook();
 
-          <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className="mt-6 w-96 rounded-xl border p-6 text-left hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Deploy &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
+                console.log(booksUnFinished);
+                console.log("Books:- ");
+                console.log(booksFinished);
+
+                let books = booksFinished.concat(booksUnFinished);
+                setBooks(books);
+            } else {
+                console.log("Ethereum object doesn't exist!");
+            }
+        } catch (error) {
+            console.log(error, "error");
+            setTxError(error.message);
+        }
+    };
+
+    const connectWallet = async () => {
+        try {
+            const { ethereum } = window;
+            if (!ethereum) {
+                console.log("Metamask not connected");
+                return;
+            }
+
+            let chainId = await ethereum.request({ method: "eth_chainId" });
+            console.log("Connected to chain:" + chainId);
+
+            const rinkebyChainId = "0x4";
+
+            if (chainId !== rinkebyChainId) {
+                alert("You are not connected to the Rinkeby Testnet!");
+                return;
+            }
+            const accounts = await ethereum.request({
+                method: "eth_requestAccounts",
+            });
+
+            console.log("Found account", accounts);
+            setCurrentAccount(accounts[0]);
+        } catch (error) {
+            console.log(error, "error");
+        }
+    };
+
+    const checkCorrectNetwork = async () => {
+        const { ethereum } = window;
+        let chainId = await ethereum.request({ method: "eth_chainId" });
+        console.log("Connected to chain:" + chainId);
+
+        const rinkebyChainId = "0x4";
+
+        if (chainId !== rinkebyChainId) {
+            setCorrectNetwork(false);
+        } else {
+            setCorrectNetwork(true);
+        }
+    };
+
+    const submitBook = async () => {
+        let book = {
+            name: bookName,
+            year: parseInt(bookYear),
+            author: bookAuthor,
+            finished: bookFinished == "yes" ? true : false,
+        };
+        try {
+            const { ethereum } = window;
+            if (ethereum) {
+                const provider = new ethers.providers.Web3Provider(ethereum);
+                const signer = provider.getSigner();
+                const LibraryContract = new ethers.Contract(
+                    LibraryContractAddress,
+                    Library.abi,
+                    signer
+                );
+
+                let libraryTx = await LibraryContract.addBook(
+                    book.name,
+                    book.year,
+                    book.author,
+                    book.finished
+                );
+
+                console.log(libraryTx);
+            } else {
+                console.log("Ethereum object doesn't exist!");
+            }
+        } catch (error) {
+            console.log(error, "error");
+            setTxError(error.message);
+        }
+    };
+    const clickBookFinished = async (id) => {
+        console.log(id);
+
+        try {
+            const { ethereum } = window;
+
+            if (ethereum) {
+                const provider = new ethers.providers.Web3Provider(ethereum);
+                const signer = provider.getSigner();
+                const LibraryContract = new ethers.Contract(
+                    LibraryContractAddress,
+                    Library.abi,
+                    signer
+                );
+
+                let libraryTx = await LibraryContract.setFinished(id, true);
+
+                console.log(libraryTx);
+            } else {
+                console.log("Ethereum object doesn't exist!");
+            }
+        } catch (error) {
+            console.log("Error Submitting new Book", error);
+            setTxError(error.message);
+        }
+    };
+    return (
+        <div className="flex flex-col items-center bg-[#f3f6f4] text-[#6a50aa] min-h-screen">
+            <div className="trasition hover:rotate-180 hover:scale-105 transition duration-500 ease-in-out"></div>
+            <h2 className="text-3xl font-bold mb-20 mt-12">
+                Manage your Library Catalog
+            </h2>
+            {currentAccount === "" ? (
+                <button
+                    className="text-2xl font-bold py-3 px-12 bg-[#f1c232] rounded-lg mb-10 hover:scale-105 transition duration-500 ease-in-out"
+                    onClick={connectWallet}
+                >
+                    Connect Wallet
+                </button>
+            ) : correctNetwork ? (
+                <h4 className="text-3xl font-bold mb-20 mt-12">
+                    Wallet Connected
+                </h4>
+            ) : (
+                <div className="flex flex-col justify-center items-center mb-20 font-bold text-2xl gap-y-3">
+                    <div>----------------------------------------</div>
+                    <div>Please connect to the Rinkeby Testnet</div>
+                    <div>and reload the page</div>
+                    <div>----------------------------------------</div>
+                </div>
+            )}
+            <div className="text-xl font-semibold mb-20 mt-4">
+                <input
+                    className="text-xl font-bold mb-2 mt-1"
+                    type="text"
+                    placeholder="Book Name"
+                    value={bookName}
+                    onChange={(e) => setBookName(e.target.value)}
+                />
+                <br />
+                <input
+                    className="text-xl font-bold mb-2 mt-1"
+                    type="text"
+                    placeholder="Book Author"
+                    value={bookAuthor}
+                    onChange={(e) => setBookAuthor(e.target.value)}
+                />
+                <br />
+                <input
+                    className="text-xl font-bold mb-2 mt-1"
+                    type="text"
+                    placeholder="Book Year"
+                    value={bookYear}
+                    onChange={(e) => setBookYear(e.target.value)}
+                />
+                <br />
+                <label>
+                    Have you Finished reading this book?
+                    <select
+                        value={bookFinished}
+                        onChange={(e) => setBookFinished(e.target.value)}
+                    >
+                        <option value="yes">yes</option>
+                        <option value="no">no</option>
+                    </select>
+                </label>
+                <button
+                    className="text-xl font-bold py-3 px-12 bg-[#f1c232] rounded-lg mb-10 hover:scale-105 transition duration-500 ease-in-out"
+                    onClick={submitBook}
+                >
+                    Add Book
+                </button>
+            </div>
+            {
+                <div className="flex flex-col justify-center items-center">
+                    <div className="font-semibold text-lg text-center mb-4">
+                        Books List
+                    </div>
+                    <button
+                        className="text-xl font-bold py-3 px-12 bg-[#f1c232] rounded-lg mb-10 hover:scale-105 transition duration-500 ease-in-out"
+                        onClick={getBooks}
+                    >
+                        Get Books
+                    </button>
+                    {books.map((book) => (
+                        <Book
+                            key={book.id}
+                            id={parseInt(book.id)}
+                            name={book.name}
+                            year={parseInt(book.year).toString()}
+                            author={book.author}
+                            finished={book.finished.toString()}
+                            clickBookFinished={clickBookFinished}
+                        />
+                    ))}
+                </div>
+            }
         </div>
-      </main>
+    );
+};
 
-      <footer className="flex h-24 w-full items-center justify-center border-t">
-        <a
-          className="flex items-center justify-center gap-2"
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-        </a>
-      </footer>
-    </div>
-  )
-}
-
-export default Home
+export default Home;
