@@ -10,7 +10,6 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   }
 });
 
-//0x4761eF7eA38e5A6a6DEf271Be3Eb04b319A5C0Eb
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
