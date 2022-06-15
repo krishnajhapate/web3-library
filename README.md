@@ -13,3 +13,16 @@ npx hardhat node
 node scripts/sample-script.js
 npx hardhat help
 ```
+
+# Create .env file in the root
+
+```
+ALCHEMY_RINKEBY_URL="<Your Alchemy rinkeby url>"
+ACCOUNT_PRIVATE_KEY="<Your Private key>"
+```
+
+## Create .env.local file in the client folder
+
+```
+CONTRACT_ADDRESS="<YOUR DEPLOYED CONTRACT ADDRESS HERE>"
+```
